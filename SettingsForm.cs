@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing.Printing;
 using System.Management;
 using System.Windows.Forms;
 
@@ -10,7 +11,6 @@ namespace EBScan
         public SettingsForm()
         {
             InitializeComponent();
-
         }
 
         public void GetSettings()
@@ -30,17 +30,28 @@ namespace EBScan
                     comboBoxDevice.SelectedValue = Properties.Settings.Default.Device;
                 }
             }
+            foreach (string printer in PrinterSettings.InstalledPrinters)
+            {
+                comboBoxPrinter.Items.Add(printer);
+            }
+            if (Properties.Settings.Default.Printer != String.Empty)
+            {
+                comboBoxPrinter.SelectedItem = Properties.Settings.Default.Printer;
+            }
         }
 
-        public void SaveSettings(string url, int id)
+        public void SaveSettings(string url, int userId)
         {
             // Save settings.
             Properties.Settings.Default.URL = url.Trim();
             Properties.Settings.Default.AuthUsername = textBoxUsername.Text.Trim();
             Properties.Settings.Default.AuthPassword = textBoxPassword.Text.Trim();
-            Properties.Settings.Default.ID = id;
+            Properties.Settings.Default.ID = userId;
             Properties.Settings.Default.Device = comboBoxDevice.SelectedItem != null
                 ? ((KeyValuePair<string, string>)comboBoxDevice.SelectedItem).Key
+                : String.Empty;
+            Properties.Settings.Default.Printer = comboBoxPrinter.SelectedItem != null
+                ? comboBoxPrinter.SelectedItem.ToString()
                 : String.Empty;
             Properties.Settings.Default.Save();
         }
@@ -82,23 +93,23 @@ namespace EBScan
                 MessageBox.Show("Invalid URL.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
-            // Validate ID.
-            int id;
+            // Validate user ID.
+            int userId;
             try
             {
-                id = Convert.ToInt32(textBoxId.Text);
+                userId = Convert.ToInt32(textBoxId.Text);
             }
             catch (Exception ex)
             {
-                MessageBox.Show("ID: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("User ID: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
             // Settings are valid, save them.
-            SaveSettings(textBoxUrl.Text, id);
+            SaveSettings(textBoxUrl.Text, userId);
             // Try to open the barcode scanner port if configured.
             if (Properties.Settings.Default.Device != String.Empty)
             {
-                 Program.mainForm.InitDevice();
+                 Program.mainForm.InitScanner();
             }
             // We're done, close the settings form.
             Close();

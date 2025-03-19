@@ -42,14 +42,16 @@ namespace EBScan
             this.textBoxUsername = new System.Windows.Forms.TextBox();
             this.label5 = new System.Windows.Forms.Label();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
+            this.comboBoxPrinter = new System.Windows.Forms.ComboBox();
+            this.label6 = new System.Windows.Forms.Label();
             this.groupBox1.SuspendLayout();
             this.SuspendLayout();
             // 
             // buttonOk
             // 
-            this.buttonOk.Location = new System.Drawing.Point(116, 176);
+            this.buttonOk.Location = new System.Drawing.Point(116, 194);
             this.buttonOk.Name = "buttonOk";
-            this.buttonOk.Size = new System.Drawing.Size(75, 23);
+            this.buttonOk.Size = new System.Drawing.Size(75, 24);
             this.buttonOk.TabIndex = 0;
             this.buttonOk.Text = "&OK";
             this.buttonOk.UseVisualStyleBackColor = true;
@@ -58,9 +60,9 @@ namespace EBScan
             // buttonCancel
             // 
             this.buttonCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            this.buttonCancel.Location = new System.Drawing.Point(197, 176);
+            this.buttonCancel.Location = new System.Drawing.Point(197, 194);
             this.buttonCancel.Name = "buttonCancel";
-            this.buttonCancel.Size = new System.Drawing.Size(75, 23);
+            this.buttonCancel.Size = new System.Drawing.Size(75, 24);
             this.buttonCancel.TabIndex = 1;
             this.buttonCancel.Text = "&Cancel";
             this.buttonCancel.UseVisualStyleBackColor = true;
@@ -161,13 +163,33 @@ namespace EBScan
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "HTTP Basic Authentication";
             // 
+            // comboBoxPrinter
+            // 
+            this.comboBoxPrinter.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.comboBoxPrinter.FormattingEnabled = true;
+            this.comboBoxPrinter.Location = new System.Drawing.Point(64, 167);
+            this.comboBoxPrinter.Name = "comboBoxPrinter";
+            this.comboBoxPrinter.Size = new System.Drawing.Size(208, 21);
+            this.comboBoxPrinter.TabIndex = 12;
+            // 
+            // label6
+            // 
+            this.label6.AutoSize = true;
+            this.label6.Location = new System.Drawing.Point(8, 170);
+            this.label6.Name = "label6";
+            this.label6.Size = new System.Drawing.Size(37, 13);
+            this.label6.TabIndex = 11;
+            this.label6.Text = "Printer";
+            // 
             // SettingsForm
             // 
             this.AcceptButton = this.buttonOk;
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.CancelButton = this.buttonCancel;
-            this.ClientSize = new System.Drawing.Size(284, 211);
+            this.ClientSize = new System.Drawing.Size(284, 226);
+            this.Controls.Add(this.comboBoxPrinter);
+            this.Controls.Add(this.label6);
             this.Controls.Add(this.groupBox1);
             this.Controls.Add(this.comboBoxDevice);
             this.Controls.Add(this.label3);
@@ -206,5 +228,7 @@ namespace EBScan
         private System.Windows.Forms.TextBox textBoxUsername;
         private System.Windows.Forms.Label label5;
         private System.Windows.Forms.GroupBox groupBox1;
+        private System.Windows.Forms.ComboBox comboBoxPrinter;
+        private System.Windows.Forms.Label label6;
     }
 }

@@ -45,10 +45,13 @@ namespace EBScan
             this.columnStatus = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnMsg = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnResponseCode = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.columnAwb = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnResponseMsg = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.contextMenuList = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.resendToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.printAWBToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.serialPort = new System.IO.Ports.SerialPort(this.components);
+            this.columnClientId = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.statusStrip.SuspendLayout();
             this.contextMenuStrip.SuspendLayout();
             this.contextMenuList.SuspendLayout();
@@ -56,6 +59,7 @@ namespace EBScan
             // 
             // statusStrip
             // 
+            this.statusStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
             this.statusStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.statusLabel});
             this.statusStrip.Location = new System.Drawing.Point(0, 419);
@@ -80,6 +84,7 @@ namespace EBScan
             // 
             // contextMenuStrip
             // 
+            this.contextMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
             this.contextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.openToolStripMenuItem,
             this.settingsToolStripMenuItem,
@@ -125,6 +130,8 @@ namespace EBScan
             this.columnStatus,
             this.columnMsg,
             this.columnResponseCode,
+            this.columnAwb,
+            this.columnClientId,
             this.columnResponseMsg});
             this.listView.ContextMenuStrip = this.contextMenuList;
             this.listView.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -154,37 +161,55 @@ namespace EBScan
             // columnMsg
             // 
             this.columnMsg.Text = "Barcode/Message";
-            this.columnMsg.Width = 175;
+            this.columnMsg.Width = 125;
             // 
             // columnResponseCode
             // 
             this.columnResponseCode.Text = "Ret.Code";
             this.columnResponseCode.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
             // 
+            // columnAwb
+            // 
+            this.columnAwb.Text = "AWB";
+            this.columnAwb.Width = 90;
+            // 
             // columnResponseMsg
             // 
             this.columnResponseMsg.Text = "Ret.Message";
-            this.columnResponseMsg.Width = 240;
+            this.columnResponseMsg.Width = 200;
             // 
             // contextMenuList
             // 
+            this.contextMenuList.ImageScalingSize = new System.Drawing.Size(20, 20);
             this.contextMenuList.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.resendToolStripMenuItem});
+            this.resendToolStripMenuItem,
+            this.printAWBToolStripMenuItem});
             this.contextMenuList.Name = "contextMenuList";
-            this.contextMenuList.Size = new System.Drawing.Size(113, 26);
+            this.contextMenuList.Size = new System.Drawing.Size(128, 48);
             // 
             // resendToolStripMenuItem
             // 
             this.resendToolStripMenuItem.Name = "resendToolStripMenuItem";
-            this.resendToolStripMenuItem.Size = new System.Drawing.Size(112, 22);
-            this.resendToolStripMenuItem.Text = "Resend";
+            this.resendToolStripMenuItem.Size = new System.Drawing.Size(127, 22);
+            this.resendToolStripMenuItem.Text = "&Resend";
             this.resendToolStripMenuItem.Click += new System.EventHandler(this.ResendToolStripMenuItem_Click);
+            // 
+            // printAWBToolStripMenuItem
+            // 
+            this.printAWBToolStripMenuItem.Name = "printAWBToolStripMenuItem";
+            this.printAWBToolStripMenuItem.Size = new System.Drawing.Size(127, 22);
+            this.printAWBToolStripMenuItem.Text = "&Print AWB";
+            this.printAWBToolStripMenuItem.Click += new System.EventHandler(this.printAWBToolStripMenuItem_Click);
             // 
             // serialPort
             // 
             this.serialPort.PortName = "COM3";
             this.serialPort.ErrorReceived += new System.IO.Ports.SerialErrorReceivedEventHandler(this.SerialPort_ErrorReceived);
             this.serialPort.DataReceived += new System.IO.Ports.SerialDataReceivedEventHandler(this.SerialPort_DataReceived);
+            // 
+            // columnClientId
+            // 
+            this.columnClientId.Text = "Client Id";
             // 
             // MainForm
             // 
@@ -226,6 +251,9 @@ namespace EBScan
         private ToolStripStatusLabel statusLabel;
         private ContextMenuStrip contextMenuList;
         private ToolStripMenuItem resendToolStripMenuItem;
+        private ColumnHeader columnAwb;
+        private ToolStripMenuItem printAWBToolStripMenuItem;
+        private ColumnHeader columnClientId;
     }
 }
 
