@@ -98,6 +98,20 @@ namespace EBScan
                 return ((AssemblyCompanyAttribute)attributes[0]).Company;
             }
         }
+
         #endregion
+
+        private void labelLink_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            string url = AssemblyDescription;
+            if (!string.IsNullOrEmpty(url))
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = url,
+                    UseShellExecute = true
+                });
+            }
+        }
     }
 }

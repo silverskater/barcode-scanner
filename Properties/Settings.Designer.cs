@@ -82,5 +82,17 @@ namespace EBScan.Properties {
                 this["AuthPassword"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string Printer {
+            get {
+                return ((string)(this["Printer"]));
+            }
+            set {
+                this["Printer"] = value;
+            }
+        }
     }
 }
