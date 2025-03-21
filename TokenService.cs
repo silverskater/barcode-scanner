@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Web.Script.Serialization;
@@ -45,9 +44,6 @@ namespace EBScan
                 {
                     _bearerToken = data["data"]["token"];
                     _bearerTokenExpires = DateTime.Parse(data["data"]["expiresAt"]);
-
-                    Debug.WriteLine($"DEBUG RefreshBearerTokenAsync(): {_bearerToken}");
-                    Debug.WriteLine($"DEBUG RefreshBearerTokenAsync(): {_bearerTokenExpires}");
                 }
             }
         }
