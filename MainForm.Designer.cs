@@ -199,7 +199,7 @@ namespace EBScan
             this.printAWBToolStripMenuItem.Name = "printAWBToolStripMenuItem";
             this.printAWBToolStripMenuItem.Size = new System.Drawing.Size(127, 22);
             this.printAWBToolStripMenuItem.Text = "&Print AWB";
-            this.printAWBToolStripMenuItem.Click += new System.EventHandler(this.printAWBToolStripMenuItem_Click);
+            this.printAWBToolStripMenuItem.Click += new System.EventHandler(this.PrintAWBToolStripMenuItem_Click);
             // 
             // serialPort
             // 

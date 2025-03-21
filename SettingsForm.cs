@@ -106,11 +106,8 @@ namespace EBScan
             }
             // Settings are valid, save them.
             SaveSettings(textBoxUrl.Text, userId);
-            // Try to open the barcode scanner port if configured.
-            if (Properties.Settings.Default.Device != String.Empty)
-            {
-                 Program.mainForm.InitScanner();
-            }
+            // Try to (re-)start with the new configuration.
+            Program.mainForm.InitializeApp();
             // We're done, close the settings form.
             Close();
         }
