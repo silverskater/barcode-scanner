@@ -1,58 +1,54 @@
-using EBScan;
-using System.Net.Http;
-using Microsoft.Win32;
 using System;
-using System.IO.Ports;
-using System.Linq;
-using System.Management;
-using System.Net;
-using System.Text;
+using System.Diagnostics;
+using System.Net.Http;
 using System.Threading.Tasks;
 using System.Web.Script.Serialization;
-using System.Windows.Forms;
-using System.Diagnostics;
 
-public class TokenService
+namespace EBScan
 {
-    private string bearerToken = "";
-    private DateTime bearerTokenExpires = DateTime.MinValue;
-    private readonly HttpClient httpClient;
-    private readonly string username = "clienttest";
-    private readonly string password = "testing";
-
-    public TokenService(HttpClient httpClient)
+    public class TokenService
     {
-        this.httpClient = httpClient;
-    }
+        private string _bearerToken = "";
+        private DateTime _bearerTokenExpires = DateTime.MinValue;
+        private readonly HttpClient _httpClient;
 
-    public async Task<string> GetTokenAsync()
-    {
-        Debug.WriteLine($"DEBUG GetTokenAsync(): {bearerTokenExpires.ToString()}");
-
-        if (DateTime.Now >= bearerTokenExpires)
+        public TokenService(HttpClient httpClient)
         {
-            await RefreshBearerTokenAsync();
+            _httpClient = httpClient;
         }
-        return bearerToken;
-    }
 
-    private async Task RefreshBearerTokenAsync()
-    {
-        Debug.WriteLine($"DEBUG RefreshBearerTokenAsync(): {username}");
-        string url = "https://api.fancourier.ro/login?username=" + username + "&password=" + password;
-        using (var response = await httpClient.PostAsync(url, null))
+        public async Task<string> GetTokenAsync()
         {
-            response.EnsureSuccessStatusCode();
-            string jsonData = await response.Content.ReadAsStringAsync();
-            JavaScriptSerializer js = new JavaScriptSerializer();
-            dynamic data = js.Deserialize<dynamic>(jsonData);
-            if (data["status"] == "success")
+            if (DateTime.Now >= _bearerTokenExpires)
             {
-                bearerToken = data["data"]["token"];
-                bearerTokenExpires = DateTime.Parse(data["data"]["expiresAt"]);
+                await RefreshBearerTokenAsync();
+            }
+            return _bearerToken;
+        }
 
-                Debug.WriteLine($"DEBUG RefreshBearerTokenAsync(): {bearerToken}");
-        Debug.WriteLine($"DEBUG RefreshBearerTokenAsync(): {bearerTokenExpires.ToString()}");
+        private async Task RefreshBearerTokenAsync()
+        {
+            string username = string.IsNullOrEmpty(Properties.Settings.Default.FanAuthUsername)
+                ? Properties.Settings.Default.AuthUsername
+                : Properties.Settings.Default.FanAuthUsername;
+            string password = string.IsNullOrEmpty(Properties.Settings.Default.FanAuthPassword)
+                ? Properties.Settings.Default.AuthPassword
+                : Properties.Settings.Default.FanAuthPassword;
+            string url = $"https://api.fancourier.ro/login?username={username}&password={password}";
+            using (var response = await _httpClient.PostAsync(url, null))
+            {
+                response.EnsureSuccessStatusCode();
+                string jsonData = await response.Content.ReadAsStringAsync();
+                var js = new JavaScriptSerializer();
+                dynamic data = js.Deserialize<dynamic>(jsonData);
+                if (data["status"] == "success")
+                {
+                    _bearerToken = data["data"]["token"];
+                    _bearerTokenExpires = DateTime.Parse(data["data"]["expiresAt"]);
+
+                    Debug.WriteLine($"DEBUG RefreshBearerTokenAsync(): {_bearerToken}");
+                    Debug.WriteLine($"DEBUG RefreshBearerTokenAsync(): {_bearerTokenExpires}");
+                }
             }
         }
     }

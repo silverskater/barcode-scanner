@@ -15,10 +15,10 @@ namespace EBScan
 {
     public partial class MainForm : Form
     {
-        private readonly ListViewColumnSorter lvwColumnSorter;
-        private WebBrowser webBrowser = new WebBrowser();
-        private readonly HttpClient httpClient;
-        private readonly TokenService tokenService;
+        private readonly ListViewColumnSorter _lvwColumnSorter;
+        private WebBrowser _webBrowser = new WebBrowser();
+        private readonly HttpClient _httpClient;
+        private readonly TokenService _tokenService;
 
         protected class Response
         {
@@ -36,8 +36,8 @@ namespace EBScan
             InitializeComponent();
 
             // Create an instance of a ListView column sorter and assign it to the ListView control.
-            lvwColumnSorter = new ListViewColumnSorter();
-            this.listView.ListViewItemSorter = lvwColumnSorter;
+            _lvwColumnSorter = new ListViewColumnSorter();
+            listView.ListViewItemSorter = _lvwColumnSorter;
 
             // Sorting: ensure that the view is set to show details.
             listView.View = View.Details;
@@ -55,9 +55,9 @@ namespace EBScan
             }
 
             // Initialize HttpClient with TokenHandler
-            tokenService = new TokenService(new HttpClient());
-            var tokenHandler = new TokenHandler(tokenService);
-            httpClient = new HttpClient(tokenHandler)
+            _tokenService = new TokenService(new HttpClient());
+            var tokenHandler = new TokenHandler(_tokenService);
+            _httpClient = new HttpClient(tokenHandler)
             {
                 BaseAddress = new Uri("https://api.fancourier.ro/")
             };
@@ -138,7 +138,7 @@ namespace EBScan
 
         public void AddMessage(string msg, bool isError = false)
         {
-            Response serverResponse = new Response();
+            var serverResponse = new Response();
             if (!isError)
             {
                 // Send the barcode to the web server and receive a response containing the AWB.
@@ -169,7 +169,7 @@ namespace EBScan
             // Add a new line to list view.
             string status = isError ? "ERROR" : "OK";
             string[] values = { DateTime.Now.ToString(), status, msg, statusCode, serverResponse.Awb, serverResponse.ClientId, msgResponse };
-            ListViewItem row = new ListViewItem(values);
+            var row = new ListViewItem(values);
             // Add newest first (to the top).
             listView.Items.Insert(0, row);
             // Limit list to the last 1000 items.
@@ -189,7 +189,7 @@ namespace EBScan
 
         private Response SendBarcode(string barcode)
         {
-            Response response = new Response();
+            var response = new Response();
             if (string.IsNullOrEmpty(Properties.Settings.Default.URL))
             {
                 return response;
@@ -197,7 +197,7 @@ namespace EBScan
             // Fetch the corresponding AWB Tracking Number from the custom API endpoint.
             string url = $"{Properties.Settings.Default.URL}?barcode={WebUtility.UrlEncode(barcode)}&user={Properties.Settings.Default.ID.ToString()}";
             string jsonData = "{}";
-            using (WebClient webClient = new WebClient())
+            using (var webClient = new WebClient())
             {
                 if (!string.IsNullOrEmpty(Properties.Settings.Default.AuthUsername) && !string.IsNullOrEmpty(Properties.Settings.Default.AuthPassword))
                 {
@@ -215,7 +215,7 @@ namespace EBScan
                 catch (WebException ex)
                 {
                     response.HasError = true;
-                    HttpWebResponse res = (HttpWebResponse)ex.Response;
+                    var res = (HttpWebResponse)ex.Response;
                     if (res != null)
                     {
                         response.StatusCode = (int)res.StatusCode;
@@ -224,14 +224,14 @@ namespace EBScan
                     return response;
                 }
             }
-            JavaScriptSerializer js = new JavaScriptSerializer();
+            var js = new JavaScriptSerializer();
             try
             {
                 dynamic data = js.Deserialize<dynamic>(jsonData);
                 response.HasError = data.ContainsKey("error") ? data["error"] : true;
                 response.Message = data.ContainsKey("message") ? data["message"] : string.Empty;
                 response.Awb = data.ContainsKey("awb") ? data["awb"] : string.Empty;
-                response.ClientId = data.ContainsKey("fan_client_id") ? data["fan_client_id"] : string.Empty;
+                response.ClientId = data.ContainsKey("fan_client_id") ? data["fan_client_id"].ToString() : string.Empty;
                 response.Print = !string.IsNullOrEmpty(response.Awb) && !string.IsNullOrEmpty(response.ClientId) && data.ContainsKey("print") && data["print"];
             }
             catch (Exception ex)
@@ -271,16 +271,15 @@ namespace EBScan
             // Adjust the HTML for printing on an A6 sticker printer.
             // Lastest IE rendering engine for CSS3 flex support.
             html = html.Replace("<body", "<head><meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\" /></head><body");
-            // Add custom CSS at the end of the first '<style>' block.
-            int index = html.IndexOf("</style>");
+            // Add custom CSS at the end of the '<style>' block inside of '<div id="print-area">'.
+            int index = html.IndexOf("</style>", html.IndexOf("id=\"print-area\""));
             if (index > 0)
             {
-                html = html.Insert(index, @"#awb_epod_table { width: 9cm; height: auto; margin-top: 5px; } #awb_epod_table td:first-child { padding-left: 2px; } #awb_epod_table td:last-child { padding-right: 2px; } .footer_container { padding-left: 12px !important; } .general_info_container .one_line_text span {font-size: 9pt !important; }");
+                html = html.Insert(index, @"body {transform: none !important;} #awb_epod_table { width: 94mm; height: 13cm; padding-bottom: 0.1cm }  .footer_container { padding-left: 20px; }");
             }
-
             // Internet Explorer print settings.
             string keyName = @"Software\Microsoft\Internet Explorer\PageSetup";
-            using (RegistryKey key = Registry.CurrentUser.OpenSubKey(keyName, true))
+            using (var key = Registry.CurrentUser.OpenSubKey(keyName, true))
             {
                 if (key != null)
                 {
@@ -296,15 +295,15 @@ namespace EBScan
                 }
             }
             // Reinitialize browser if it has been disposed (after error).
-            if (webBrowser.IsDisposed)
+            if (_webBrowser.IsDisposed)
             {
-                webBrowser = new WebBrowser();
+                _webBrowser = new WebBrowser();
             }
-            webBrowser.DocumentText = html;
-            webBrowser.Parent = this;
-            webBrowser.ScriptErrorsSuppressed = true;
+            _webBrowser.DocumentText = html;
+            _webBrowser.Parent = this;
+            _webBrowser.ScriptErrorsSuppressed = true;
             //webBrowser.DocumentCompleted += new WebBrowserDocumentCompletedEventHandler(PrintAwbDocument);
-            webBrowser.DocumentCompleted += (browser, webBrowserEvent) =>
+            _webBrowser.DocumentCompleted += (browser, webBrowserEvent) =>
             {
                 // @fixme This is a workaround for using the selected printer in IE.
                 string originalDefaultPrinterName = GetDefaultPrinter();
@@ -324,7 +323,7 @@ namespace EBScan
         {
             // GET AWB Print in HTML format.
             string url = $"/awb/label?clientId={clientId}&awbs[]={awb}&pdf=0&&language=ro";
-            using (var response = await httpClient.GetAsync(url))
+            using (var response = await _httpClient.GetAsync(url))
             {
                 if (response.IsSuccessStatusCode)
                 {
@@ -356,9 +355,9 @@ namespace EBScan
 
         private static bool SetDefaultPrinter(string defaultPrinter)
         {
-            using (ManagementObjectSearcher objectSearcher = new ManagementObjectSearcher("SELECT * FROM Win32_Printer"))
+            using (var objectSearcher = new ManagementObjectSearcher("SELECT * FROM Win32_Printer"))
             {
-                using (ManagementObjectCollection objectCollection = objectSearcher.Get())
+                using (var objectCollection = objectSearcher.Get())
                 {
                     foreach (ManagementObject mo in objectCollection)
                     {
@@ -375,7 +374,7 @@ namespace EBScan
 
         private void SettingsToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            SettingsForm settingsForm = new SettingsForm();
+            var settingsForm = new SettingsForm();
             settingsForm.ShowDialog();
         }
 
@@ -411,7 +410,7 @@ namespace EBScan
 
         private void AboutToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            AboutBox aboutBox = new AboutBox();
+            var aboutBox = new AboutBox();
             aboutBox.ShowDialog();
         }
 
@@ -439,31 +438,31 @@ namespace EBScan
         private void SerialPort_DataReceived(object sender, SerialDataReceivedEventArgs e)
         {
             // Scanner read runs in a different thread, use thread-safe way to access form components.
-            this.Invoke((MethodInvoker)(() => AddMessage(serialPort.ReadExisting())));
+            Invoke((MethodInvoker)(() => AddMessage(serialPort.ReadExisting())));
         }
 
         private void SerialPort_ErrorReceived(object sender, SerialErrorReceivedEventArgs e)
         {
             // Scanner read runs in a different thread, use thread-safe way to access form components.
-            this.Invoke((MethodInvoker)(() => AddMessage($"Device error: {e.EventType}")));
+            Invoke((MethodInvoker)(() => AddMessage($"Device error: {e.EventType}")));
         }
 
         private void ListView_ColumnClick(object sender, ColumnClickEventArgs e)
         {
-            if (e.Column == lvwColumnSorter.SortColumn)
+            if (e.Column == _lvwColumnSorter.SortColumn)
             {
                 // Reverse the current sort direction for this column.
-                lvwColumnSorter.Order = lvwColumnSorter.Order == SortOrder.Ascending ? SortOrder.Descending : SortOrder.Ascending;
+                _lvwColumnSorter.Order = _lvwColumnSorter.Order == SortOrder.Ascending ? SortOrder.Descending : SortOrder.Ascending;
             }
             else
             {
                 // Set the column number that is to be sorted; default to ascending.
-                lvwColumnSorter.SortColumn = e.Column;
-                lvwColumnSorter.Order = SortOrder.Ascending;
+                _lvwColumnSorter.SortColumn = e.Column;
+                _lvwColumnSorter.Order = SortOrder.Ascending;
             }
 
             // Perform the sort with these new sort options.
-            this.listView.Sort();
+            listView.Sort();
         }
 
         private void ResendToolStripMenuItem_Click(object sender, EventArgs e)
@@ -481,6 +480,5 @@ namespace EBScan
                 PrintShippingLabel(item.SubItems[4].Text, item.SubItems[5].Text);
             }
         }
-
     }
 }

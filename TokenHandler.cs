@@ -6,27 +6,30 @@ using System.Threading.Tasks;
 using System;
 using System.Diagnostics;
 
-public class TokenHandler : DelegatingHandler
+namespace EBScan
 {
-    private readonly TokenService tokenService;
-
-    public TokenHandler(TokenService tokenService) : base(new HttpClientHandler())
+    public class TokenHandler : DelegatingHandler
     {
-        this.tokenService = tokenService;
-    }
+        private readonly TokenService tokenService;
 
-    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-    {
-        string token = await tokenService.GetTokenAsync();
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        try
+        public TokenHandler(TokenService tokenService) : base(new HttpClientHandler())
         {
-            return await base.SendAsync(request, cancellationToken);
+            this.tokenService = tokenService;
         }
-        catch (Exception ex)
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            Debug.WriteLine($"TokenHandler: Exception {ex.Message}");
-            return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+            string token = await tokenService.GetTokenAsync();
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            try
+            {
+                return await base.SendAsync(request, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"TokenHandler: Exception {ex.Message}");
+                return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+            }
         }
     }
 }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Drawing.Printing;
 using System.Management;
 using System.Windows.Forms;
@@ -11,6 +12,7 @@ namespace EBScan
         public SettingsForm()
         {
             InitializeComponent();
+            SetPlaceholderText(textBoxUrl, "Custom barcode->AWB API endpoint");
         }
 
         public void GetSettings()
@@ -25,7 +27,7 @@ namespace EBScan
                 comboBoxDevice.DataSource = new BindingSource(comboSource, null);
                 comboBoxDevice.ValueMember = "Key";
                 comboBoxDevice.DisplayMember = "Value";
-                if (Properties.Settings.Default.Device != String.Empty)
+                if (!string.IsNullOrEmpty(Properties.Settings.Default.Device))
                 {
                     comboBoxDevice.SelectedValue = Properties.Settings.Default.Device;
                 }
@@ -34,7 +36,7 @@ namespace EBScan
             {
                 comboBoxPrinter.Items.Add(printer);
             }
-            if (Properties.Settings.Default.Printer != String.Empty)
+            if (!string.IsNullOrEmpty(Properties.Settings.Default.Printer))
             {
                 comboBoxPrinter.SelectedItem = Properties.Settings.Default.Printer;
             }
@@ -46,6 +48,8 @@ namespace EBScan
             Properties.Settings.Default.URL = url.Trim();
             Properties.Settings.Default.AuthUsername = textBoxUsername.Text.Trim();
             Properties.Settings.Default.AuthPassword = textBoxPassword.Text.Trim();
+            Properties.Settings.Default.FanAuthUsername = textBoxFanUsername.Text.Trim();
+            Properties.Settings.Default.FanAuthPassword = textBoxFanPassword.Text.Trim();
             Properties.Settings.Default.ID = userId;
             Properties.Settings.Default.Device = comboBoxDevice.SelectedItem != null
                 ? ((KeyValuePair<string, string>)comboBoxDevice.SelectedItem).Key
@@ -110,6 +114,30 @@ namespace EBScan
             Program.mainForm.InitializeApp();
             // We're done, close the settings form.
             Close();
+        }
+
+        private void SetPlaceholderText(TextBox textBox, string placeholder)
+        {
+            textBox.ForeColor = Color.Gray;
+            textBox.Text = placeholder;
+
+            textBox.Enter += (sender, e) =>
+            {
+                if (textBox.Text == placeholder)
+                {
+                    textBox.Text = "";
+                    textBox.ForeColor = Color.Black;
+                }
+            };
+
+            textBox.Leave += (sender, e) =>
+            {
+                if (string.IsNullOrWhiteSpace(textBox.Text))
+                {
+                    textBox.Text = placeholder;
+                    textBox.ForeColor = Color.Gray;
+                }
+            };
         }
     }
 }

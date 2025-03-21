@@ -1,109 +1,69 @@
 ﻿using System.Collections;
 using System.Windows.Forms;
 
-namespace EBScan
+public class ListViewColumnSorter : IComparer
 {
+    private int _columnToSort;
+    private SortOrder _orderOfSort;
+    private readonly CaseInsensitiveComparer _objectCompare;
 
     /// <summary>
-    /// This class is an implementation of the 'IComparer' interface.
+    /// Initializes a new instance of the <see cref="ListViewColumnSorter"/> class.
     /// </summary>
-    public class ListViewColumnSorter : IComparer
+    public ListViewColumnSorter()
     {
-        /// <summary>
-        /// Specifies the column to be sorted
-        /// </summary>
-        private int ColumnToSort;
+        _columnToSort = 0;
+        _orderOfSort = SortOrder.None;
+        _objectCompare = new CaseInsensitiveComparer();
+    }
 
-        /// <summary>
-        /// Specifies the order in which to sort (i.e. 'Ascending').
-        /// </summary>
-        private SortOrder OrderOfSort;
+    /// <summary>
+    /// Compares two ListView items.
+    /// </summary>
+    /// <param name="x">First item to compare.</param>
+    /// <param name="y">Second item to compare.</param>
+    /// <returns>
+    /// A signed integer that indicates the relative values of x and y.
+    /// </returns>
+    public int Compare(object x, object y)
+    {
+        int compareResult;
+        var listViewX = (ListViewItem)x;
+        var listViewY = (ListViewItem)y;
 
-        /// <summary>
-        /// Case insensitive comparer object
-        /// </summary>
-        private CaseInsensitiveComparer ObjectCompare;
+        // Compare the two items.
+        compareResult = _objectCompare.Compare(listViewX.SubItems[_columnToSort].Text, listViewY.SubItems[_columnToSort].Text);
 
-        /// <summary>
-        /// Class constructor. Initializes various elements
-        /// </summary>
-        public ListViewColumnSorter()
+        // Calculate the correct return value based on the object comparison.
+        if (_orderOfSort == SortOrder.Ascending)
         {
-            // Initialize the column to '0'
-            ColumnToSort = 0;
-
-            // Initialize the sort order to 'none'
-            OrderOfSort = SortOrder.None;
-
-            // Initialize the CaseInsensitiveComparer object
-            ObjectCompare = new CaseInsensitiveComparer();
+            return compareResult;
         }
-
-        /// <summary>
-        /// This method is inherited from the IComparer interface. It compares the two objects passed using a case insensitive comparison.
-        /// </summary>
-        /// <param name="x">First object to be compared</param>
-        /// <param name="y">Second object to be compared</param>
-        /// <returns>The result of the comparison. "0" if equal, negative if 'x' is less than 'y' and positive if 'x' is greater than 'y'</returns>
-        public int Compare(object x, object y)
+        else if (_orderOfSort == SortOrder.Descending)
         {
-            int compareResult;
-            ListViewItem listviewX, listviewY;
-
-            // Cast the objects to be compared to ListViewItem objects
-            listviewX = (ListViewItem)x;
-            listviewY = (ListViewItem)y;
-
-            // Compare the two items
-            compareResult = ObjectCompare.Compare(listviewX.SubItems[ColumnToSort].Text, listviewY.SubItems[ColumnToSort].Text);
-
-            // Calculate correct return value based on object comparison
-            if (OrderOfSort == SortOrder.Ascending)
-            {
-                // Ascending sort is selected, return normal result of compare operation
-                return compareResult;
-            }
-            else if (OrderOfSort == SortOrder.Descending)
-            {
-                // Descending sort is selected, return negative result of compare operation
-                return (-compareResult);
-            }
-            else
-            {
-                // Return '0' to indicate they are equal
-                return 0;
-            }
+            return -compareResult;
         }
-
-        /// <summary>
-        /// Gets or sets the number of the column to which to apply the sorting operation (Defaults to '0').
-        /// </summary>
-        public int SortColumn
+        else
         {
-            set
-            {
-                ColumnToSort = value;
-            }
-            get
-            {
-                return ColumnToSort;
-            }
+            return 0;
         }
+    }
 
-        /// <summary>
-        /// Gets or sets the order of sorting to apply (for example, 'Ascending' or 'Descending').
-        /// </summary>
-        public SortOrder Order
-        {
-            set
-            {
-                OrderOfSort = value;
-            }
-            get
-            {
-                return OrderOfSort;
-            }
-        }
+    /// <summary>
+    /// Gets or sets the number of the column to which to apply the sorting operation (Defaults to '0').
+    /// </summary>
+    public int SortColumn
+    {
+        get { return _columnToSort; }
+        set { _columnToSort = value; }
+    }
 
+    /// <summary>
+    /// Gets or sets the order of sorting to apply (for example, 'Ascending' or 'Descending').
+    /// </summary>
+    public SortOrder Order
+    {
+        get { return _orderOfSort; }
+        set { _orderOfSort = value; }
     }
 }
