@@ -118,8 +118,10 @@ namespace EBScan
 
         private void SetPlaceholderText(TextBox textBox, string placeholder)
         {
-            textBox.ForeColor = Color.Gray;
-            textBox.Text = placeholder;
+            if (string.IsNullOrWhiteSpace(textBox.Text)) {
+                textBox.ForeColor = Color.Gray;
+                textBox.Text = placeholder;
+            }
 
             textBox.Enter += (sender, e) =>
             {

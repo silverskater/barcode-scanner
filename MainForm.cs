@@ -1,10 +1,12 @@
 ﻿using Microsoft.Win32;
 using System;
+using System.Collections.Generic;
 using System.IO.Ports;
 using System.Linq;
 using System.Management;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web.Script.Serialization;
@@ -17,6 +19,7 @@ namespace EBScan
         private readonly ListViewColumnSorter _lvwColumnSorter;
         private WebBrowser _webBrowser = new WebBrowser();
         private readonly HttpClient _httpClient;
+        private readonly HttpClient _httpClientWithAuth;
         private readonly TokenService _tokenService;
 
         protected class Response
@@ -53,22 +56,24 @@ namespace EBScan
                 CreateHandle();
             }
 
-            // Initialize HttpClient with TokenHandler
+            // Initialize HttpClient with TokenHandler.
             _tokenService = new TokenService(new HttpClient());
             var tokenHandler = new TokenHandler(_tokenService);
-            _httpClient = new HttpClient(tokenHandler)
+            _httpClientWithAuth = new HttpClient(tokenHandler)
             {
                 BaseAddress = new Uri("https://api.fancourier.ro/")
             };
+            // Initialize HttpClient for SendBarcodeAsync().
+            _httpClient = new HttpClient();
 
             InitializeApp();
         }
 
         public void InitializeApp()
         {
-            // Only start if all the settings are valid.
             if (CheckSettings())
             {
+                // All settings are OK, start using the barcode scanner.
                 InitializeBarcodeScanner();
             }
             else
@@ -137,29 +142,29 @@ namespace EBScan
 
         public void AddMessage(string msg, bool isError = false)
         {
-            var serverResponse = new Response();
+            var response = new Response();
             if (!isError)
             {
                 // Send the barcode to the web server and receive a response containing the AWB.
-                serverResponse = SendBarcode(msg);
-                if (serverResponse.HasError)
+                response = Task.Run(async () => await SendBarcodeAsync(msg)).Result;
+                if (response.HasError)
                 {
                     isError = true;
                 }
             }
-            string statusCode = serverResponse.StatusCode == 0
+            string statusCode = response.StatusCode == 0
                 ? string.Empty
-                : serverResponse.StatusCode.ToString();
+                : response.StatusCode.ToString();
             // If no response, fall back to exception message which could also be empty.
-            string msgResponse = string.IsNullOrEmpty(serverResponse.Message)
-                ? serverResponse.ExceptionMessage
-                : serverResponse.Message;
+            string msgResponse = string.IsNullOrEmpty(response.Message)
+                ? response.ExceptionMessage
+                : response.Message;
             if (isError)
             {
-                string helpText = !string.IsNullOrEmpty(serverResponse.ExceptionMessage)
-                    ? serverResponse.ExceptionMessage
-                    : serverResponse.HasError
-                        ? serverResponse.Message
+                string helpText = !string.IsNullOrEmpty(response.ExceptionMessage)
+                    ? response.ExceptionMessage
+                    : response.HasError
+                        ? response.Message
                         : msg;
                 statusLabel.Text = $"Error: {helpText}";
                 notifyIcon.Icon = Properties.Resources.barcode_error;
@@ -167,7 +172,7 @@ namespace EBScan
             }
             // Add a new line to list view.
             string status = isError ? "ERROR" : "OK";
-            string[] values = { DateTime.Now.ToString(), status, msg, statusCode, serverResponse.Awb, serverResponse.ClientId, msgResponse };
+            string[] values = { DateTime.Now.ToString(), status, msg, statusCode, response.Awb, response.ClientId, msgResponse };
             var row = new ListViewItem(values);
             // Add newest first (to the top).
             listView.Items.Insert(0, row);
@@ -178,51 +183,50 @@ namespace EBScan
             }
             // Update last column width on data changes.
             ResizeForm();
-            // AWB printing.
-            if (serverResponse.Print)
+            if (response.Print)
             {
                 // Try to print the AWB.
-                PrintShippingLabel(serverResponse.Awb, serverResponse.ClientId);
+                Task.Run(async () => await PrintShippingLabelAsync(response.Awb, response.ClientId));
             }
         }
 
-        private Response SendBarcode(string barcode)
+        private async Task<Response> SendBarcodeAsync(string barcode)
         {
             var response = new Response();
             if (string.IsNullOrEmpty(Properties.Settings.Default.URL))
             {
                 return response;
             }
+            string jsonData;
             // Fetch the corresponding AWB Tracking Number from the custom API endpoint.
-            string url = $"{Properties.Settings.Default.URL}?barcode={WebUtility.UrlEncode(barcode)}&user={Properties.Settings.Default.ID.ToString()}";
-            string jsonData = "{}";
-            using (var webClient = new WebClient())
+            var urlBuilder = new StringBuilder();
+            urlBuilder.Append(Properties.Settings.Default.URL)
+                      .Append("?barcode=")
+                      .Append(WebUtility.UrlEncode(barcode))
+                      .Append("&user=")
+                      .Append(Properties.Settings.Default.ID.ToString());
+            var request = new HttpRequestMessage(HttpMethod.Get, urlBuilder.ToString());
+            if (!string.IsNullOrEmpty(Properties.Settings.Default.AuthUsername) && !string.IsNullOrEmpty(Properties.Settings.Default.AuthPassword))
             {
-                if (!string.IsNullOrEmpty(Properties.Settings.Default.AuthUsername) && !string.IsNullOrEmpty(Properties.Settings.Default.AuthPassword))
-                {
-                    string encoded = Convert.ToBase64String(Encoding.GetEncoding("ISO-8859-1").GetBytes(
-                        Properties.Settings.Default.AuthUsername + ":" + Properties.Settings.Default.AuthPassword
-                    ));
-                    webClient.Headers.Add(HttpRequestHeader.Authorization, "Basic " + encoded);
-                }
-                webClient.Headers.Add(HttpRequestHeader.Accept, "application/json");
-                try
-                {
-                    jsonData = webClient.DownloadString(url);
-                    response.StatusCode = (int)HttpStatusCode.OK;
-                }
-                catch (WebException ex)
-                {
-                    response.HasError = true;
-                    var res = (HttpWebResponse)ex.Response;
-                    if (res != null)
-                    {
-                        response.StatusCode = (int)res.StatusCode;
-                    }
-                    response.ExceptionMessage = ex.Message;
-                    return response;
-                }
+                string encoded = Convert.ToBase64String(Encoding.GetEncoding("ISO-8859-1").GetBytes(
+                    $"{Properties.Settings.Default.AuthUsername}:{Properties.Settings.Default.AuthPassword}"
+                ));
+                request.Headers.Authorization = new AuthenticationHeaderValue("Basic", encoded);
             }
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            try
+            {
+                var httpResponse = await _httpClient.SendAsync(request).ConfigureAwait(false);
+                jsonData = await httpResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
+                response.StatusCode = (int)httpResponse.StatusCode;
+            }
+            catch (HttpRequestException ex)
+            {
+                response.HasError = true;
+                response.ExceptionMessage = ex.Message;
+                return response;
+            }
+            // Process the API response
             var js = new JavaScriptSerializer();
             try
             {
@@ -238,6 +242,7 @@ namespace EBScan
                 response.HasError = true;
                 response.ExceptionMessage = ex.Message;
             }
+
             return response;
         }
 
@@ -247,24 +252,30 @@ namespace EBScan
             notifyIcon.Icon = Properties.Resources.barcode;
         }
 
-        private void PrintShippingLabel(string awb, string clientId)
+        private async Task PrintShippingLabelAsync(string awb, string clientId)
         {
+            System.Diagnostics.Debug.WriteLine($"DEBUG PrintShippingLabelAsync: {awb}");
             string html = "";
             try
             {
-                html = Task.Run(async () =>
-                {
-                    return await FetchShippingLabelHtmlAsync(awb, clientId);
-                }).Result;
+                html = await FetchShippingLabelHtmlAsync(awb, clientId);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"{ex.GetType()}: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                // Use the UI thread.
+                Invoke((MethodInvoker)(() =>
+                {
+                    MessageBox.Show($"{ex.GetType()}: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }));
                 return;
             }
             if (string.IsNullOrEmpty(html))
             {
-                MessageBox.Show("Empty AWB response!");
+                // Use the UI thread.
+                Invoke((MethodInvoker)(() =>
+                {
+                    MessageBox.Show("Empty AWB response!");
+                }));
                 return;
             }
             // Adjust the HTML for printing on an A6 sticker printer.
@@ -293,45 +304,47 @@ namespace EBScan
                     key.SetValue("Shrink_To_Fit", "false");
                 }
             }
-            // Reinitialize browser if it has been disposed (after error).
-            if (_webBrowser.IsDisposed)
+            // Use the UI thread.
+            Invoke((MethodInvoker)(() =>
             {
-                _webBrowser = new WebBrowser();
-            }
-            _webBrowser.DocumentText = html;
-            _webBrowser.Parent = this;
-            _webBrowser.ScriptErrorsSuppressed = true;
-            //webBrowser.DocumentCompleted += new WebBrowserDocumentCompletedEventHandler(PrintAwbDocument);
-            _webBrowser.DocumentCompleted += (browser, webBrowserEvent) =>
-            {
-                // @fixme This is a workaround for using the selected printer in IE.
-                string originalDefaultPrinterName = GetDefaultPrinter();
-                SetDefaultPrinter(Properties.Settings.Default.Printer);
-                // Print the document now that it is fully loaded.            
-                ((WebBrowser)browser).Print();
-                // Dispose the WebBrowser now that the task is complete. 
-                ((WebBrowser)browser).Dispose();
-                if (GetDefaultPrinter() != originalDefaultPrinterName)
+                // Reinitialize browser if it has been disposed (after encountering an error).
+                if (_webBrowser.IsDisposed)
                 {
-                    SetDefaultPrinter(originalDefaultPrinterName);
+                    _webBrowser = new WebBrowser();
                 }
-            };
+                _webBrowser.DocumentText = html;
+                _webBrowser.Parent = this;
+                _webBrowser.ScriptErrorsSuppressed = true;
+                _webBrowser.DocumentCompleted += (browser, webBrowserEvent) =>
+                {
+                    // @fixme This is a workaround for using the selected printer in IE.
+                    string originalDefaultPrinterName = GetDefaultPrinter();
+                    SetDefaultPrinter(Properties.Settings.Default.Printer);
+                    // Print the document now that it is fully loaded.            
+                    ((WebBrowser)browser).Print();
+                    // Dispose the WebBrowser now that the task is complete. 
+                    ((WebBrowser)browser).Dispose();
+                    if (GetDefaultPrinter() != originalDefaultPrinterName)
+                    {
+                        SetDefaultPrinter(originalDefaultPrinterName);
+                    }
+                };
+            }));
         }
 
         private async Task<string> FetchShippingLabelHtmlAsync(string awb, string clientId)
         {
             // GET AWB Print in HTML format.
             string url = $"/awb/label?clientId={clientId}&awbs[]={awb}&pdf=0&&language=ro";
-            using (var response = await _httpClient.GetAsync(url))
+            using (var response = await _httpClientWithAuth.GetAsync(url).ConfigureAwait(false))
             {
                 if (response.IsSuccessStatusCode)
                 {
-                    return await response.Content.ReadAsStringAsync();
+                    return await response.Content.ReadAsStringAsync().ConfigureAwait(false);
                 }
                 else
                 {
-                    MessageBox.Show("Error: " + response.StatusCode);
-                    return "";
+                    throw new Exception($"HTTP Status Code {response.StatusCode} from: '{url}'.");
                 }
             }
         }
@@ -341,7 +354,7 @@ namespace EBScan
             var query = new ObjectQuery("SELECT * FROM Win32_Printer");
             var searcher = new ManagementObjectSearcher(query);
 
-            foreach (ManagementObject mo in searcher.Get())
+            foreach (ManagementObject mo in searcher.Get().Cast<ManagementObject>())
             {
                 if (((bool?)mo["Default"]) ?? false)
                 {
@@ -443,7 +456,7 @@ namespace EBScan
         private void SerialPort_ErrorReceived(object sender, SerialErrorReceivedEventArgs e)
         {
             // Scanner read runs in a different thread, use thread-safe way to access form components.
-            Invoke((MethodInvoker)(() => AddMessage($"Device error: {e.EventType}")));
+            Invoke((MethodInvoker)(() => AddMessage($"Device error: {e.EventType}", true)));
         }
 
         private void ListView_ColumnClick(object sender, ColumnClickEventArgs e)
@@ -474,10 +487,26 @@ namespace EBScan
 
         private void PrintAWBToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            foreach (ListViewItem item in listView.SelectedItems)
+            // Capture the selected items on the UI thread.
+            List<ListViewItem> selectedItems = new List<ListViewItem>();
+            Invoke((MethodInvoker)(() =>
             {
-                PrintShippingLabel(item.SubItems[4].Text, item.SubItems[5].Text);
-            }
+                foreach (ListViewItem item in listView.SelectedItems)
+                {
+                    if (!string.IsNullOrEmpty(item.SubItems[4].Text) && !string.IsNullOrEmpty(item.SubItems[5].Text))
+                    {
+                        selectedItems.Add(item);
+                    }
+                }
+            }));
+            // Process the selected items on a background thread.
+            Task.Run(async () =>
+            {
+                foreach (var item in selectedItems)
+                {
+                    await PrintShippingLabelAsync(item.SubItems[4].Text, item.SubItems[5].Text);
+                }
+            });
         }
     }
 }
