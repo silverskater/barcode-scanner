@@ -254,7 +254,6 @@ namespace EBScan
 
         private async Task PrintShippingLabelAsync(string awb, string clientId)
         {
-            System.Diagnostics.Debug.WriteLine($"DEBUG PrintShippingLabelAsync: {awb}");
             string html = "";
             try
             {
@@ -278,14 +277,14 @@ namespace EBScan
                 }));
                 return;
             }
-            // Adjust the HTML for printing on an A6 sticker printer.
+            // Adjust the received HTML for printing on an A6 sticker printer.
             // Lastest IE rendering engine for CSS3 flex support.
             html = html.Replace("<body", "<head><meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\" /></head><body");
             // Add custom CSS at the end of the '<style>' block inside of '<div id="print-area">'.
             int index = html.IndexOf("</style>", html.IndexOf("id=\"print-area\""));
             if (index > 0)
             {
-                html = html.Insert(index, @"body {transform: none !important;} #awb_epod_table { width: 94mm; height: 13cm; padding-bottom: 0.1cm }  .footer_container { padding-left: 20px; }");
+                html = html.Insert(index, @"body {transform: none !important;} #awb_epod_table { width: 94mm; height: 13cm; padding-bottom: 0.1cm } #footer_row td { text-align: center} .footer_container { padding-left: 0px; } .footer_container img { width: 100% !important }");
             }
             // Internet Explorer print settings.
             string keyName = @"Software\Microsoft\Internet Explorer\PageSetup";

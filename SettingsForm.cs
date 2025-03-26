@@ -20,6 +20,8 @@ namespace EBScan
             textBoxUrl.Text = Properties.Settings.Default.URL;
             textBoxUsername.Text = Properties.Settings.Default.AuthUsername;
             textBoxPassword.Text = Properties.Settings.Default.AuthPassword;
+            textBoxFanUsername.Text = Properties.Settings.Default.FanAuthUsername;
+            textBoxFanPassword.Text = Properties.Settings.Default.FanAuthPassword;
             textBoxId.Text = Properties.Settings.Default.ID.ToString();
             Dictionary<String, String> comboSource = GetComPortNames();
             if (comboSource.Count > 0)
@@ -122,10 +124,14 @@ namespace EBScan
                 textBox.ForeColor = Color.Gray;
                 textBox.Text = placeholder;
             }
+            else
+            {
+                textBox.ForeColor = Color.Black;
+            }
 
             textBox.Enter += (sender, e) =>
             {
-                if (textBox.Text == placeholder)
+                if (string.IsNullOrWhiteSpace(textBox.Text) || textBox.Text == placeholder)
                 {
                     textBox.Text = "";
                     textBox.ForeColor = Color.Black;
