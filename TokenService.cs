@@ -25,7 +25,7 @@ namespace EBScan
             return _bearerToken;
         }
 
-        private async Task RefreshBearerTokenAsync()
+        public async Task RefreshBearerTokenAsync()
         {
             string username = string.IsNullOrEmpty(Properties.Settings.Default.FanAuthUsername)
                 ? Properties.Settings.Default.AuthUsername
@@ -43,7 +43,11 @@ namespace EBScan
                 if (data["status"] == "success")
                 {
                     _bearerToken = data["data"]["token"];
-                    _bearerTokenExpires = DateTime.Parse(data["data"]["expiresAt"]);
+                    // Get the token expiration time and subtract 5 minutes to ensure we refresh the token before it expires.
+                    string expiresAt = data["data"]["expiresAt"];
+                    DateTime parsedDate = DateTime.ParseExact(expiresAt, "yyyy-MM-dd HH:mm:ss", null).AddMinutes(-5);
+                    TimeZoneInfo timeZone = TimeZoneInfo.FindSystemTimeZoneById("E. Europe Standard Time");
+                    _bearerTokenExpires = TimeZoneInfo.ConvertTime(parsedDate, timeZone);
                 }
             }
         }

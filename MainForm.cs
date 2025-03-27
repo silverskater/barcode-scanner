@@ -73,6 +73,8 @@ namespace EBScan
         {
             if (CheckSettings())
             {
+                // Init/Reset the bearer token.
+                Task.Run(async () => await _tokenService.RefreshBearerTokenAsync());
                 // All settings are OK, start using the barcode scanner.
                 InitializeBarcodeScanner();
             }
@@ -331,7 +333,7 @@ namespace EBScan
             }));
         }
 
-        private async Task<string> FetchShippingLabelHtmlAsync(string awb, string clientId)
+        private async Task<string> FetchShippingLabelHtmlAsync(string awb, string clientId, bool retryForbidden = true)
         {
             // GET AWB Print in HTML format.
             string url = $"/awb/label?clientId={clientId}&awbs[]={awb}&pdf=0&&language=ro";
@@ -340,6 +342,12 @@ namespace EBScan
                 if (response.IsSuccessStatusCode)
                 {
                     return await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                }
+                else if (retryForbidden && response.StatusCode.Equals(HttpStatusCode.Forbidden))
+                {
+                    // Refresh the bearer token and retry the request one more time.
+                    await _tokenService.RefreshBearerTokenAsync().ConfigureAwait(false);
+                    return await FetchShippingLabelHtmlAsync(awb, clientId, false);
                 }
                 else
                 {
