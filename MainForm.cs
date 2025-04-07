@@ -1,6 +1,8 @@
 ﻿using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.IO.Ports;
 using System.Linq;
 using System.Management;
@@ -256,39 +258,105 @@ namespace EBScan
 
         private async Task PrintShippingLabelAsync(string awb, string clientId)
         {
-            string html = "";
+            bool isPdf = Properties.Settings.Default.FanApiFormat != "html";
             try
             {
-                html = await FetchShippingLabelHtmlAsync(awb, clientId);
+                var shippingLabelContent = await FetchShippingLabelAsync(awb, clientId, isPdf);
+                if (shippingLabelContent == null || (isPdf && ((byte[])shippingLabelContent).Length == 0) || (!isPdf && string.IsNullOrEmpty((string)shippingLabelContent)))
+                {
+                    ShowErrorMessage("Empty AWB response!");
+                    return;
+                }
+
+                if (isPdf)
+                {
+                    PrintPdfLabel((byte[])shippingLabelContent);
+                }
+                else
+                {
+                    PrintHtmlLabel((string)shippingLabelContent);
+                }
             }
             catch (Exception ex)
             {
-                // Use the UI thread.
-                Invoke((MethodInvoker)(() =>
-                {
-                    MessageBox.Show($"{ex.GetType()}: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }));
-                return;
+                ShowErrorMessage($"{ex.GetType()}: {ex.Message}");
             }
-            if (string.IsNullOrEmpty(html))
+        }
+
+        private void PrintPdfLabel(byte[] shippingLabelContent)
+        {
+            string tempFile = Path.GetTempFileName();
+            using (FileStream fs = new FileStream(tempFile, FileMode.Create))
             {
-                // Use the UI thread.
-                Invoke((MethodInvoker)(() =>
-                {
-                    MessageBox.Show("Empty AWB response!");
-                }));
-                return;
+                fs.Write(shippingLabelContent, 0, shippingLabelContent.Length);
+                fs.Flush();
             }
+            try
+            {
+                Process gsProcess;
+                var gsProcessInfo = new ProcessStartInfo
+                {
+                    WindowStyle = ProcessWindowStyle.Hidden,
+                    FileName = @"gswin64c.exe",
+                    Arguments = $"-dBATCH -dNOPAUSE -dNOSAFER -dNoCancel -dNOPROMPT -sDEVICE=mswinpr2 -sOutputFile=\"%printer%{Properties.Settings.Default.Printer}\" -sPAPERSIZE=a6 -c \"<</PageOffset [8 0]>> setpagedevice\" -c \"{{ .5 gt {{ 1 }} {{ 0 }} ifelse}} settransfer\" -f \"{tempFile}\""
+                };
+                gsProcess = Process.Start(gsProcessInfo);
+                gsProcess.WaitForExit();
+            }
+            catch (Exception ex)
+            {
+                ShowErrorMessage($"{ex.GetType()}: {ex.Message}", "GSview PDF print error");
+            }
+            finally
+            {
+                File.Delete(tempFile);
+            }
+        }
+
+        private void PrintHtmlLabel(string shippingLabelContent)
+        {
             // Adjust the received HTML for printing on an A6 sticker printer.
-            // Lastest IE rendering engine for CSS3 flex support.
-            html = html.Replace("<body", "<head><meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\" /></head><body");
-            // Add custom CSS at the end of the '<style>' block inside of '<div id="print-area">'.
-            int index = html.IndexOf("</style>", html.IndexOf("id=\"print-area\""));
+            shippingLabelContent = shippingLabelContent.Replace("<body", "<head><meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\" /></head><body");
+            int index = shippingLabelContent.IndexOf("</style>", shippingLabelContent.IndexOf("id=\"print-area\""));
             if (index > 0)
             {
-                html = html.Insert(index, @"body {transform: none !important;} #awb_epod_table { width: 94mm; height: 13cm; padding-bottom: 0.1cm } #footer_row td { text-align: center} .footer_container { padding-left: 0px; } .footer_container img { width: 100% !important }");
+                shippingLabelContent = shippingLabelContent.Insert(index, @"body {transform: none !important;} #awb_epod_table { width: 94mm; height: 13cm; padding-bottom: 0.1cm } #footer_row td { text-align: center} .footer_container { padding-left: 0px; } .footer_container img { width: 100% !important }");
             }
-            // Internet Explorer print settings.
+            SetInternetExplorerPrintSettings();
+            Invoke((MethodInvoker)(() =>
+            {
+                if (_webBrowser.IsDisposed)
+                {
+                    _webBrowser = new WebBrowser();
+                }
+                _webBrowser.DocumentText = shippingLabelContent;
+                _webBrowser.Parent = this;
+                _webBrowser.ScriptErrorsSuppressed = true;
+                _webBrowser.DocumentCompleted += (browser, webBrowserEvent) =>
+                {
+                    string originalDefaultPrinterName = GetDefaultPrinter();
+                    SetDefaultPrinter(Properties.Settings.Default.Printer);
+                    ((WebBrowser)browser).Print();
+                    ((WebBrowser)browser).Dispose();
+                    if (GetDefaultPrinter() != originalDefaultPrinterName)
+                    {
+                        SetDefaultPrinter(originalDefaultPrinterName);
+                    }
+                };
+            }));
+        }
+
+        private void ShowErrorMessage(string message, string title = "Error")
+        {
+            // Use the UI thread.
+            Invoke((MethodInvoker)(() =>
+            {
+                MessageBox.Show(message, title, MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }));
+        }
+
+        private void SetInternetExplorerPrintSettings()
+        {
             string keyName = @"Software\Microsoft\Internet Explorer\PageSetup";
             using (var key = Registry.CurrentUser.OpenSubKey(keyName, true))
             {
@@ -305,49 +373,29 @@ namespace EBScan
                     key.SetValue("Shrink_To_Fit", "false");
                 }
             }
-            // Use the UI thread.
-            Invoke((MethodInvoker)(() =>
-            {
-                // Reinitialize browser if it has been disposed (after encountering an error).
-                if (_webBrowser.IsDisposed)
-                {
-                    _webBrowser = new WebBrowser();
-                }
-                _webBrowser.DocumentText = html;
-                _webBrowser.Parent = this;
-                _webBrowser.ScriptErrorsSuppressed = true;
-                _webBrowser.DocumentCompleted += (browser, webBrowserEvent) =>
-                {
-                    // @fixme This is a workaround for using the selected printer in IE.
-                    string originalDefaultPrinterName = GetDefaultPrinter();
-                    SetDefaultPrinter(Properties.Settings.Default.Printer);
-                    // Print the document now that it is fully loaded.            
-                    ((WebBrowser)browser).Print();
-                    // Dispose the WebBrowser now that the task is complete. 
-                    ((WebBrowser)browser).Dispose();
-                    if (GetDefaultPrinter() != originalDefaultPrinterName)
-                    {
-                        SetDefaultPrinter(originalDefaultPrinterName);
-                    }
-                };
-            }));
         }
 
-        private async Task<string> FetchShippingLabelHtmlAsync(string awb, string clientId, bool retryForbidden = true)
+        private async Task<object> FetchShippingLabelAsync(string awb, string clientId, bool isPdf, bool retryForbidden = true)
         {
-            // GET AWB Print in HTML format.
-            string url = $"/awb/label?clientId={clientId}&awbs[]={awb}&pdf=0&&language=ro";
+            string url = $"/awb/label?clientId={clientId}&awbs[]={awb}&pdf={(isPdf ? 1 : 0)}&&language=ro";
             using (var response = await _httpClientWithAuth.GetAsync(url).ConfigureAwait(false))
             {
                 if (response.IsSuccessStatusCode)
                 {
-                    return await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                    if (isPdf)
+                    {
+                        return await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        return await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                    }
                 }
                 else if (retryForbidden && response.StatusCode.Equals(HttpStatusCode.Forbidden))
                 {
                     // Refresh the bearer token and retry the request one more time.
                     await _tokenService.RefreshBearerTokenAsync().ConfigureAwait(false);
-                    return await FetchShippingLabelHtmlAsync(awb, clientId, false);
+                    return await FetchShippingLabelAsync(awb, clientId, isPdf, false);
                 }
                 else
                 {
@@ -360,7 +408,6 @@ namespace EBScan
         {
             var query = new ObjectQuery("SELECT * FROM Win32_Printer");
             var searcher = new ManagementObjectSearcher(query);
-
             foreach (ManagementObject mo in searcher.Get().Cast<ManagementObject>())
             {
                 if (((bool?)mo["Default"]) ?? false)
@@ -368,7 +415,6 @@ namespace EBScan
                     return mo["Name"] as string;
                 }
             }
-
             return null;
         }
 
@@ -378,7 +424,7 @@ namespace EBScan
             {
                 using (var objectCollection = objectSearcher.Get())
                 {
-                    foreach (ManagementObject mo in objectCollection)
+                    foreach (ManagementObject mo in objectCollection.Cast<ManagementObject>())
                     {
                         if (string.Compare(mo["Name"].ToString(), defaultPrinter, true) == 0)
                         {

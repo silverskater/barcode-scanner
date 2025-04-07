@@ -23,6 +23,8 @@ namespace EBScan
             textBoxFanUsername.Text = Properties.Settings.Default.FanAuthUsername;
             textBoxFanPassword.Text = Properties.Settings.Default.FanAuthPassword;
             textBoxId.Text = Properties.Settings.Default.ID.ToString();
+            radioButtonFormatPdf.Checked = Properties.Settings.Default.FanApiFormat != "html"; 
+            radioButtonFormatHtml.Checked = Properties.Settings.Default.FanApiFormat == "html"; 
             Dictionary<String, String> comboSource = GetComPortNames();
             if (comboSource.Count > 0)
             {
@@ -59,6 +61,7 @@ namespace EBScan
             Properties.Settings.Default.Printer = comboBoxPrinter.SelectedItem != null
                 ? comboBoxPrinter.SelectedItem.ToString()
                 : String.Empty;
+            Properties.Settings.Default.FanApiFormat = radioButtonFormatHtml.Checked ? "html" : "pdf";
             Properties.Settings.Default.Save();
         }
 

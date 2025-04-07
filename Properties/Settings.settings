@@ -26,5 +26,8 @@
     <Setting Name="FanAuthPassword" Type="System.String" Scope="User">
       <Value Profile="(Default)" />
     </Setting>
+    <Setting Name="FanApiFormat" Type="System.String" Scope="User">
+      <Value Profile="(Default)">pdf</Value>
+    </Setting>
   </Settings>
 </SettingsFile>

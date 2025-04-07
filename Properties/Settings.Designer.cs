@@ -118,5 +118,17 @@ namespace EBScan.Properties {
                 this["FanAuthPassword"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("pdf")]
+        public string FanApiFormat {
+            get {
+                return ((string)(this["FanApiFormat"]));
+            }
+            set {
+                this["FanApiFormat"] = value;
+            }
+        }
     }
 }
